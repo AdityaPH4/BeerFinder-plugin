@@ -30,6 +30,10 @@ import type {
 import { MapView }
   from "./components/MapView";
 
+import { IoIosBeer } from "react-icons/io";
+import { PiWineFill } from "react-icons/pi";
+import { BeerKey } from "./components/BeerKey";
+
 const initialFilters:
   BeerFinderFilters = {
     query: "",
@@ -183,7 +187,7 @@ export default function BeerFinder() {
 
           {/* OUTLETS */}
 
-          <div className="outlet-list">
+          {/* <div className="outlet-list">
 
             {!loading &&
               outlets.map(
@@ -206,7 +210,47 @@ export default function BeerFinder() {
                 )
               )}
 
-          </div>
+          </div> */}
+          <div className="outlet-results">
+  <div className="outlet-list">
+    {outlets.map((outlet) => (
+      <OutletCard
+        key={outlet.id}
+        outlet={outlet}
+        selected={outlet.id === selectedOutletId}
+        onSelect={handleSelect}
+      />
+    ))}
+  </div>
+</div>
+
+{/* <BeerKey /> */}
+
+<div className="beer-key">
+  <div className="beer-key-title">Beer key</div>
+
+  <div className="beer-key-items">
+    <div className="beer-key-item">
+      <IoIosBeer className="beer-key-icon lager" />
+      <span>Lager</span>
+    </div>
+
+    <div className="beer-key-item">
+      <IoIosBeer className="beer-key-icon pale-ale" />
+      <span>Pale Ale</span>
+    </div>
+
+    <div className="beer-key-item">
+      <IoIosBeer className="beer-key-icon stout" />
+      <span>Stout</span>
+    </div>
+
+    <div className="beer-key-item">
+      <PiWineFill className="beer-key-icon cider" />
+      <span>Cider</span>
+    </div>
+  </div>
+</div>
 
           {/* EMPTY */}
 
