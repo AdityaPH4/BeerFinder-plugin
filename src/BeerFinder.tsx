@@ -1,12 +1,14 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
 import {
   LocateFixed,
-  Navigation,
+  MapPinned,
   RefreshCw,
   ShieldCheck,
 } from "lucide-react";
@@ -30,16 +32,13 @@ import type {
 import { MapView }
   from "./components/MapView";
 
-import { IoIosBeer } from "react-icons/io";
-import { PiWineFill } from "react-icons/pi";
-import { BeerKey } from "./components/BeerKey";
+import { getAllCategories }
+  from "./services/outletService";
 
 const initialFilters:
   BeerFinderFilters = {
     query: "",
     category: "All Categories",
-    speciality: "All Specialities",
-    stockOnly: false,
   };
 
 export default function BeerFinder() {
@@ -51,7 +50,7 @@ export default function BeerFinder() {
 
   const [selectedOutletId, setSelectedOutletId] =
     useState<string | null>(
-      "outlet-001"
+      null
     );
 
   const {
@@ -60,6 +59,11 @@ export default function BeerFinder() {
     error,
     reload,
   } = useOutlets(filters);
+
+  const categories = useMemo(
+    () => getAllCategories(),
+    []
+  );
 
   const selectedOutlet =
     useMemo(
@@ -86,6 +90,30 @@ export default function BeerFinder() {
       []
     );
 
+  /*
+   * Open the first result once, on initial load, so the map/details
+   * aren't empty. Doesn't re-fire after the user closes the panel.
+   */
+
+  const autoSelectedRef =
+    useRef(false);
+
+  useEffect(() => {
+
+    if (
+      !autoSelectedRef.current &&
+      outlets.length > 0
+    ) {
+
+      autoSelectedRef.current = true;
+
+      setSelectedOutletId(
+        outlets[0].id
+      );
+    }
+
+  }, [outlets]);
+
   return (
 
     <main className="beer-finder">
@@ -95,6 +123,7 @@ export default function BeerFinder() {
       <SearchHeader
         filters={filters}
         onChange={setFilters}
+        categories={categories}
         resultCount={
           outlets.length
         }
@@ -114,9 +143,9 @@ export default function BeerFinder() {
 
               <div className="sidebar-kicker">
 
-                <Navigation size={15} />
+                <MapPinned size={15} />
 
-                NEAREST OUTLETS
+                OUTLETS
 
               </div>
 
@@ -144,31 +173,6 @@ export default function BeerFinder() {
 
           </div>
 
-          <div className="sidebar-tools">
-
-            <span>
-              Sort:{" "}
-              <strong>
-                Nearest
-              </strong>
-            </span>
-
-            <button
-              onClick={() =>
-                setFilters({
-                  ...filters,
-                  stockOnly:
-                    !filters.stockOnly,
-                })
-              }
-            >
-              {filters.stockOnly
-                ? "All stock"
-                : "In stock only"}
-            </button>
-
-          </div>
-
           {/* LOADING */}
 
           {loading && (
@@ -187,70 +191,24 @@ export default function BeerFinder() {
 
           {/* OUTLETS */}
 
-          {/* <div className="outlet-list">
-
-            {!loading &&
-              outlets.map(
-                (outlet) => (
-
+          <div className="outlet-results">
+            <div className="outlet-list">
+              {outlets.map(
+                (outlet, index) => (
                   <OutletCard
                     key={outlet.id}
                     outlet={outlet}
+                    number={index + 1}
                     selected={
-                      selectedOutletId ===
-                      outlet.id
+                      outlet.id ===
+                      selectedOutletId
                     }
-                    onSelect={() =>
-                      handleSelect(
-                        outlet
-                      )
-                    }
+                    onSelect={handleSelect}
                   />
-
                 )
               )}
-
-          </div> */}
-          <div className="outlet-results">
-  <div className="outlet-list">
-    {outlets.map((outlet) => (
-      <OutletCard
-        key={outlet.id}
-        outlet={outlet}
-        selected={outlet.id === selectedOutletId}
-        onSelect={handleSelect}
-      />
-    ))}
-  </div>
-</div>
-
-{/* <BeerKey /> */}
-
-<div className="beer-key">
-  <div className="beer-key-title">Beer key</div>
-
-  <div className="beer-key-items">
-    <div className="beer-key-item">
-      <IoIosBeer className="beer-key-icon lager" />
-      <span>Lager</span>
-    </div>
-
-    <div className="beer-key-item">
-      <IoIosBeer className="beer-key-icon pale-ale" />
-      <span>Pale Ale</span>
-    </div>
-
-    <div className="beer-key-item">
-      <IoIosBeer className="beer-key-icon stout" />
-      <span>Stout</span>
-    </div>
-
-    <div className="beer-key-item">
-      <PiWineFill className="beer-key-icon cider" />
-      <span>Cider</span>
-    </div>
-  </div>
-</div>
+            </div>
+          </div>
 
           {/* EMPTY */}
 
@@ -277,32 +235,33 @@ export default function BeerFinder() {
 
         </aside>
 
-        {/* TEMPORARY MAP AREA */}
+        {/* MAP */}
 
         <section className="map-section">
 
-  <MapView
-    outlets={outlets}
-    selectedOutletId={
-      selectedOutletId
-    }
-    onSelectOutlet={
-      handleSelect
-    }
-  />
+          <MapView
+            outlets={outlets}
+            selectedOutletId={
+              selectedOutletId
+            }
+            onSelectOutlet={
+              handleSelect
+            }
+          />
 
-  <div className="map-trust-bar">
+          <div className="map-trust-bar">
 
             <div>
 
-              <RefreshCw size={18} />
+              <MapPinned size={18} />
 
               <strong>
-                Real-time Inventory
+                Real Location Data
               </strong>
 
               <span>
-                Live stock updates
+                Sourced from verified
+                records
               </span>
 
             </div>
@@ -328,11 +287,11 @@ export default function BeerFinder() {
               </span>
 
               <strong>
-                Wide Selection
+                Wide Coverage
               </strong>
 
               <span>
-                100+ beer brands
+                Bengaluru &amp; Goa
               </span>
 
             </div>
@@ -346,7 +305,7 @@ export default function BeerFinder() {
               </strong>
 
               <span>
-                Trusted & reliable
+                Trusted &amp; reliable
               </span>
 
             </div>
@@ -388,4 +347,4 @@ export default function BeerFinder() {
 
     </main>
   );
-}   
+}

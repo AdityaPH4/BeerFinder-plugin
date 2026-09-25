@@ -1,67 +1,37 @@
-import { mockOutlets } from "../data/mockData";
-import type {
-  BeerFinderFilters,
-  Outlet,
-} from "../types";
+import outletsData from "../data/outlets.json";
+import type { BeerFinderFilters, Outlet } from "../types";
+
+const outlets = outletsData as Outlet[];
+
+export function getAllCategories(): string[] {
+  const set = new Set<string>();
+
+  outlets.forEach((outlet) =>
+    outlet.categories.forEach((category) => set.add(category))
+  );
+
+  return Array.from(set).sort();
+}
 
 export async function getOutlets(
   filters: BeerFinderFilters
 ): Promise<Outlet[]> {
 
-  // Fake network latency
-  await new Promise((resolve) =>
-    setTimeout(resolve, 250)
-  );
+  const query = filters.query.trim().toLowerCase();
 
-  const query =
-    filters.query.trim().toLowerCase();
-
-  return mockOutlets.filter((outlet) => {
+  return outlets.filter((outlet) => {
 
     const matchesQuery =
       !query ||
-      outlet.name
-        .toLowerCase()
-        .includes(query) ||
-      outlet.area
-        .toLowerCase()
-        .includes(query) ||
-      outlet.city
-        .toLowerCase()
-        .includes(query) ||
-      outlet.address
-        .toLowerCase()
-        .includes(query);
+      outlet.title.toLowerCase().includes(query) ||
+      outlet.street.toLowerCase().includes(query) ||
+      (outlet.city ?? "").toLowerCase().includes(query) ||
+      outlet.state.toLowerCase().includes(query);
 
     const matchesCategory =
-      filters.category ===
-        "All Categories" ||
-      outlet.inventory.some(
-        (item) =>
-          item.category ===
-          filters.category
-      );
+      filters.category === "All Categories" ||
+      outlet.categories.includes(filters.category);
 
-    const matchesSpeciality =
-      filters.speciality ===
-        "All Specialities" ||
-      outlet.inventory.some(
-        (item) =>
-          item.speciality ===
-          filters.speciality
-      );
-
-    const matchesStock =
-      !filters.stockOnly ||
-      outlet.inventory.some(
-        (item) => item.available
-      );
-
-    return (
-      matchesQuery &&
-      matchesCategory &&
-      matchesSpeciality &&
-      matchesStock
-    );
+    return matchesQuery && matchesCategory;
   });
 }

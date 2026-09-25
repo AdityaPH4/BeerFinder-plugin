@@ -1,7 +1,6 @@
 import {
   MapPin,
   Search,
-  SlidersHorizontal,
   X,
 } from "lucide-react";
 
@@ -10,26 +9,22 @@ import type { BeerFinderFilters } from "../types";
 interface SearchHeaderProps {
   filters: BeerFinderFilters;
   onChange: (filters: BeerFinderFilters) => void;
+  categories: string[];
   resultCount: number;
 }
-
-const categories = [
-  "All Categories",
-  "Beer",
-];
-
-const specialities = [
-  "All Specialities",
-  "Premium Lager",
-  "Lager",
-  "Imported",
-];
 
 export function SearchHeader({
   filters,
   onChange,
+  categories,
   resultCount,
 }: SearchHeaderProps) {
+
+  const categoryOptions = [
+    "All Categories",
+    ...categories,
+  ];
+
   return (
     <header className="finder-header">
 
@@ -102,52 +97,12 @@ export function SearchHeader({
           })
         }
       >
-        {categories.map((category) => (
+        {categoryOptions.map((category) => (
           <option key={category}>
             {category}
           </option>
         ))}
       </select>
-
-      {/* SPECIALITY */}
-
-      <select
-        className="select-control"
-        value={filters.speciality}
-        onChange={(event) =>
-          onChange({
-            ...filters,
-            speciality: event.target.value,
-          })
-        }
-      >
-        {specialities.map((speciality) => (
-          <option key={speciality}>
-            {speciality}
-          </option>
-        ))}
-      </select>
-
-      {/* STOCK */}
-
-      <button
-        className={`stock-toggle ${
-          filters.stockOnly
-            ? "active"
-            : ""
-        }`}
-        onClick={() =>
-          onChange({
-            ...filters,
-            stockOnly:
-              !filters.stockOnly,
-          })
-        }
-      >
-        <SlidersHorizontal size={16} />
-
-        In stock
-      </button>
 
       <div className="result-count">
         {resultCount} outlets

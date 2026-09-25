@@ -6,6 +6,11 @@ import {
   MarkerClusterer,
   SuperClusterAlgorithm,
 } from "@googlemaps/markerclusterer";
+import type {
+  Cluster,
+  ClusterStats,
+  Renderer,
+} from "@googlemaps/markerclusterer";
 import type { Outlet } from "../types";
 
 interface MapViewProps {
@@ -27,6 +32,35 @@ const BENGALURU = {
   lat: 12.9716,
   lng: 77.5946,
 };
+
+function getCurrentLocation(): Promise<
+  { lat: number; lng: number } | null
+> {
+
+  return new Promise((resolve) => {
+
+    if (!navigator.geolocation) {
+      resolve(null);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      () => {
+        resolve(null);
+      },
+      {
+        timeout: 6000,
+        maximumAge: 5 * 60 * 1000,
+      }
+    );
+  });
+}
 
 export function MapView({
   outlets,
@@ -50,6 +84,9 @@ export function MapView({
 
   const [mapError, setMapError] =
     useState<string | null>(null);
+
+  const [mapReady, setMapReady] =
+    useState(false);
 
   /*
    * ------------------------------------------------
@@ -90,11 +127,20 @@ export function MapView({
           return;
         }
 
+        const currentLocation =
+          await getCurrentLocation();
+
+        if (cancelled) {
+          return;
+        }
+
         const map =
           new Map(
             mapContainerRef.current,
             {
-              center: BENGALURU,
+              center:
+                currentLocation ||
+                BENGALURU,
 
               zoom: 11,
 
@@ -113,6 +159,8 @@ export function MapView({
           );
 
         mapRef.current = map;
+
+        setMapReady(true);
 
       } catch (error) {
 
@@ -200,11 +248,11 @@ export function MapView({
                 map,
 
                 position: {
-                  lat: outlet.latitude,
-                  lng: outlet.longitude,
+                  lat: outlet.lat,
+                  lng: outlet.lng,
                 },
 
-                title: outlet.name,
+                title: outlet.title,
 
                 content:
                   markerElement,
@@ -241,6 +289,11 @@ export function MapView({
                   radius: 80,
                   maxZoom: 14,
                 }),
+
+              renderer:
+                createBeerClusterRenderer(
+                  AdvancedMarkerElement
+                ),
             });
         }
 
@@ -259,6 +312,7 @@ export function MapView({
     outlets,
     selectedOutletId,
     onSelectOutlet,
+    mapReady,
   ]);
 
   /*
@@ -288,8 +342,8 @@ export function MapView({
     }
 
     mapRef.current.panTo({
-      lat: outlet.latitude,
-      lng: outlet.longitude,
+      lat: outlet.lat,
+      lng: outlet.lng,
     });
 
     mapRef.current.setZoom(14);
@@ -297,6 +351,7 @@ export function MapView({
   }, [
     selectedOutletId,
     outlets,
+    mapReady,
   ]);
 
   /*
@@ -325,8 +380,8 @@ export function MapView({
       (outlet) => {
 
         bounds.extend({
-          lat: outlet.latitude,
-          lng: outlet.longitude,
+          lat: outlet.lat,
+          lng: outlet.lng,
         });
 
       }
@@ -337,6 +392,7 @@ export function MapView({
   }, [
     outlets,
     selectedOutletId,
+    mapReady,
   ]);
 
   return (
@@ -405,19 +461,6 @@ function createMarkerElement(
     );
   }
 
-  /*
-   * Different marker appearance
-   * based on inventory status.
-   */
-
-  element.dataset.status =
-    outlet.inventoryStatus;
-
-  const availableCount =
-    outlet.inventory.filter(
-      (item) => item.available
-    ).length;
-
   element.innerHTML = `
     <div class="beer-marker-pin">
 
@@ -425,18 +468,79 @@ function createMarkerElement(
         🍺
       </div>
 
-      <div class="beer-marker-count">
-        ${availableCount}
-      </div>
-
     </div>
 
     <div class="beer-marker-label">
-      ${escapeHtml(outlet.name)}
+      ${escapeHtml(outlet.title)}
     </div>
   `;
 
   return element;
+}
+
+/*
+ * ==================================================
+ * CUSTOM CLUSTER MARKER (beer-themed, replaces the
+ * library's default blue/red circles)
+ * ==================================================
+ */
+
+function createBeerClusterRenderer(
+  AdvancedMarkerElement: typeof google.maps.marker.AdvancedMarkerElement
+): Renderer {
+
+  return {
+    render(
+      cluster: Cluster,
+      stats: ClusterStats
+    ) {
+
+      const { count, position } =
+        cluster;
+
+      const tier =
+        count >=
+        Math.max(
+          40,
+          stats.clusters.markers
+            .mean * 2
+        )
+          ? "lg"
+          : count >=
+            Math.max(
+              10,
+              stats.clusters.markers
+                .mean
+            )
+          ? "md"
+          : "sm";
+
+      const element =
+        document.createElement(
+          "div"
+        );
+
+      element.className =
+        "beer-cluster-marker";
+
+      element.dataset.tier = tier;
+
+      element.innerHTML = `
+        <div class="beer-cluster-count">
+          ${count}
+        </div>
+      `;
+
+      return new AdvancedMarkerElement(
+        {
+          position,
+          content: element,
+          zIndex:
+            1000 + count,
+        }
+      );
+    },
+  };
 }
 
 /*
